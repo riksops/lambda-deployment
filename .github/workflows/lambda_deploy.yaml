@@ -130,6 +130,39 @@ jobs:
         with:
           name: ${{ inputs.lambda_function_name }}-${{ github.run_number }}-${{ inputs.aws_region }}
           path: ./*
+      - name: Publish Lambda Version
+        if: ${{ inputs.enable_versioning == 'true' }}
+        run: |
+          VERSION=$(aws lambda publish-version \
+            --function-name "${{ inputs.lambda_function_name }}" \
+            --query Version \
+            --output text)
+
+          echo "PUBLISHED_VERSION=$VERSION" >> $GITHUB_ENV
+          echo "Published Lambda version: $VERSION"
+      - name: Create or Update Lambda Alias
+        if: ${{ inputs.enable_versioning == 'true' }}
+        run: |
+          set +e
+          aws lambda get-alias \
+            --function-name "${{ inputs.lambda_function_name }}" \
+            --name "${{ inputs.lambda_alias_name }}" >/dev/null 2>&1
+          ALIAS_EXISTS=$?
+          set -e
+
+          if [ "$ALIAS_EXISTS" -eq 0 ]; then
+            echo "Updating alias ${{ inputs.lambda_alias_name }}"
+            aws lambda update-alias \
+              --function-name "${{ inputs.lambda_function_name }}" \
+              --name "${{ inputs.lambda_alias_name }}" \
+              --function-version "$PUBLISHED_VERSION"
+          else
+            echo "Creating alias ${{ inputs.lambda_alias_name }}"
+            aws lambda create-alias \
+              --function-name "${{ inputs.lambda_function_name }}" \
+              --name "${{ inputs.lambda_alias_name }}" \
+              --function-version "$PUBLISHED_VERSION"
+          fi
 
 
   deploy:
