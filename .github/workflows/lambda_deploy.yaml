@@ -187,13 +187,18 @@ jobs:
             aws --version
 
 
-      - name: Log in to AWS using OIDC
+      - name: Configure AWS credentials (IAM user)
         # if: ${{ inputs.use_oidc == 'true' }}
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-region: ${{ inputs.aws_region }}
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+      - name: Export AWS region
+        run: |
+          echo "AWS_REGION=${{ inputs.aws_region }}" >> $GITHUB_ENV
+          echo "AWS_DEFAULT_REGION=${{ inputs.aws_region }}" >> $GITHUB_ENV
 
       - name: Create Lambda Function Layer
         if: ${{ inputs.create_lambda_layer == 'true' }}
