@@ -195,6 +195,12 @@ jobs:
 
           rm lambda_function.zip
 
+      - name: Wait for Lambda update to complete
+        run: |
+          echo "Waiting for Lambda function to become Active..."
+          aws lambda wait function-updated \
+            --function-name "${{ inputs.lambda_function_name }}"
+
       - name: Publish Lambda Version
         if: ${{ inputs.enable_versioning == 'true' }}
         run: |
