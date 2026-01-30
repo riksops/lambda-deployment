@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "module": "CommonJS",
+    "esModuleInterop": true,
+    "sourceMap": false,
+    "target": "ES6",
+    "types": ["node"],
+    "outDir": "./build",
+    "noImplicitAny": false,
+    "rootDir": "./",
+    "useUnknownInCatchVariables": false
+  },
+  "include": [
+    "src/**/*.ts",
+    "index.ts",
+    "serverless-notwork.ts",
+    "src/types/constants/aws-ssm.constant.ts"
+  ],
+  "exclude": [
+    "node_modules/**/*",
+    ".serverless/**/*",
+    ".webpack/**/*",
+    "_warmup/**/*",
+    ".vscode/**/*"
+  ]
+}

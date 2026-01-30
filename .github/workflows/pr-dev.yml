@@ -1,0 +1,19 @@
+name: Pull Request (Dev)
+
+on:
+  pull_request:
+    types:
+      - closed
+
+jobs:
+  deploy-dev:
+    if: github.event.pull_request.merged == true
+    uses: ./.github/workflows/lambda_deployment.yaml
+    with:
+      environment: dev
+      runtime: node
+      create_lambda_layer: true   # or false
+      lambda_function_name: jb-lmda-internal-agent-desktop-db-script-executor-use1-dev
+      aws_region: us-east-1
+      node_build_path: build
+    secrets: inherit

@@ -1,0 +1,22 @@
+name: Pull Request (Dev) workflow
+on:
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - closed
+
+jobs:
+  db-script-executor-us-east-1:
+    uses: ./.github/workflows/lambda_deploy.yaml
+    if: github.event.pull_request.merged == true
+    with:
+      environment: dev
+      create_lambda_layer: false
+      runtime: "node"
+      lambda_function_name: "jb-lmda-test-use1-dev"
+      is_requirements_file: false
+      aws_region: "us-east-1"
+      node_build_path: "./build"
+    secrets: inherit

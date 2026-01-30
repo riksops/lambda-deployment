@@ -1,0 +1,32 @@
+service: lambda
+
+useDotenv: true
+
+plugins:
+  - serverless-plugin-typescript # used for compiling/packaging the Typescript code
+  - serverless-offline # used for local execution
+  - serverless-offline-watcher
+  - serverless-dotenv-plugin
+
+package:
+  individually: false
+  exclude:
+    - node_modules/**
+
+provider:
+  name: aws
+  runtime: nodejs22.x
+  timeout: 300
+
+functions:
+  func:
+    handler: "index.handler"
+    memorySize: 128
+    description: function for jetblue services
+    events:
+      - http:
+          path: /
+          method: ANY
+      - http:
+          path: "{proxy+}"
+          method: ANY

@@ -1,0 +1,55 @@
+{
+  "name": "code",
+  "version": "1.0.0",
+  "description": "",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsc && echo 'TypeScript compilation complete!' && npm run install-dependency-prod",
+    "install-dependency-prod": "npm install --production",
+    "start": "node build/index.js",
+    "dev": "ts-node index.ts",
+    "lint": "eslint --ext .ts --fix .",
+    "prettier": "prettier --write --ignore-unknown .",
+    "clean-layer": "rimraf nodejs layer.zip",
+    "create-lambda-layer": "npm run clean-layer && mkdir nodejs && copy package.json nodejs\\ && npm install --production --prefix nodejs && del nodejs\\package.json && del nodejs\\package-lock.json && powershell -Command \"Compress-Archive -Path nodejs -DestinationPath layer.zip\" && rimraf nodejs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.152",
+    "@types/node": "^20.19.15",
+    "@typescript-eslint/eslint-plugin": "^7.1.0",
+    "@typescript-eslint/parser": "^7.1.0",
+    "esbuild": "^0.20.1",
+    "eslint": "^8.57.0",
+    "eslint-config-prettier": "^9.1.2",
+    "eslint-plugin-prettier": "^5.5.4",
+    "prettier": "^3.6.2",
+    "typescript": "^5.9.2"
+  },
+  "dependencies": {
+    "@aws-sdk/client-connect": "^3.888.0",
+    "@aws-sdk/client-dynamodb": "^3.888.0",
+    "@aws-sdk/client-s3": "^3.888.0",
+    "@aws-sdk/client-secrets-manager": "^3.888.0",
+    "@aws-sdk/client-ssm": "^3.888.0",
+    "@aws-sdk/lib-dynamodb": "^3.888.0",
+    "bluebird": "^3.7.2",
+    "dotenv": "^16.6.1",
+    "json-2-csv": "^5.5.9",
+    "knex": "2.5.1",
+    "lodash": "^4.17.21",
+    "log4js": "^6.9.1",
+    "moment": "^2.30.1",
+    "node-fetch": "^2.7.0",
+    "pg": "^8.16.3",
+    "pg-hstore": "^2.3.4",
+    "sequelize": "^6.37.7",
+    "uuid": "^10.0.0",
+    "uuidv4": "^6.2.13"
+  },
+  "volta": {
+    "node": "22.19.0"
+  }
+}

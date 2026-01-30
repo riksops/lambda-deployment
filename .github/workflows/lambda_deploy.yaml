@@ -1,0 +1,170 @@
+name: Provisioning and Lambda Deployment
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        type: string
+        description: "Environment to deploy to"
+        default: "Dev"
+      working_directory:
+        type: string
+        description: "The directory where lambda code resides"
+        default: "./"
+      create_lambda_layer:
+        type: string
+        description: "Set to true to create a Lambda Layer, false to only update Lambda function code"
+        default: "false"
+      layer_name:
+        type: string
+        description: "Name of the Lambda Layer to create and attach"
+        default: "layer"
+      layer_description:
+        type: string
+        description: "Description of the Lambda Layer to create"
+        default: "layer description"
+      runtime:
+        type: string
+        description: "Runtime for the Lambda ex. python, node"
+        required: true
+      layer_runtime:
+        type: string
+        description: "Runtime for the Lambda Layer ex. python3.10"
+        default: "python"
+      lambda_function_name:
+        type: string
+        description: "Name of the Lambda function to deploy"
+        required: true
+      # use_oidc:
+      #   type: string
+      #   description: "Use the OIDC provider to authenticate the provisioning process"
+      #   default: "true"
+      aws_region:
+        type: string
+        description: "The AWS region where resources will be provision. If not specified, the default region is us-west-2."
+        default: "us-west-2"
+      is_requirements_file:
+        type: string
+        description: "If repo already contains dependencies folder then no need to execute installtion command. default: false"
+        default: "false"
+      node_build_path:
+        type: string
+        description: "Directory for the generated build file with it's name."
+        default: "build"
+    # secrets:
+    #   AWS_ASSUME_ROLE:
+    #     required: true
+    #   AWS_ACCOUNT_NUMBER:
+    #     required: true
+
+permissions:
+  # id-token: write
+  contents: read
+
+
+jobs:
+  build:
+    name: Build Lambda function
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    defaults:
+      run:
+        working-directory: function
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Environment
+        if: ${{ inputs.runtime == 'python' }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+      
+      - name: Install zip
+        run: sudo apt update && sudo apt install -y zip
+        
+      - name: Install Dependencies From requirements.txt file
+        if: ${{ inputs.runtime == 'python' && inputs.is_requirements_file == 'true' }}
+        run: |
+          pip install -r requirements.txt --target python
+          zip -r layer.zip python
+          rm -rf python
+          zip -r lambda_function.zip . -x "layer.zip"
+
+      - name: Already Exists Dependencies
+        if: ${{ inputs.runtime == 'python' && inputs.is_requirements_file == 'false' }}
+        run: |
+          zip -r lambda_function.zip . -x "layer.zip"
+
+      - name: Setup Environment
+        if: ${{ inputs.runtime == 'node' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install Dependencies && Build
+        if: ${{ inputs.runtime == 'node' }}
+        run: | 
+          npm install
+          npm run build
+          if [ -d "${{ inputs.node_build_path }}" ]; then
+            cd "${{ inputs.node_build_path }}"
+            zip -r ../lambda_function.zip .
+            cd -
+          fi
+          mkdir nodejs
+          mv node_modules nodejs/
+          zip -r layer.zip nodejs
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.lambda_function_name }}-${{ github.run_number }}-${{ inputs.aws_region }}
+          path: ./*
+
+
+  deploy:
+    name: Code Deploy
+    runs-on: ubuntu-latest
+    needs: build
+    environment: ${{ inputs.environment }}
+    steps:
+      - name: Download Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.lambda_function_name }}-${{ github.run_number }}-${{ inputs.aws_region }}
+          path: ./
+
+      - name: Install AWS CLI
+        run: |
+          sudo apt-get update && sudo apt install -y python3-pip && sudo apt-get install -y jq awscli
+          sudo apt-get install --only-upgrade awscli && pip3 install --upgrade awscli && aws --version
+
+      - name: Log in to AWS using OIDC
+        # if: ${{ inputs.use_oidc == 'true' }}
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ inputs.aws_region }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+      - name: Create Lambda Function Layer
+        if: ${{ inputs.create_lambda_layer == 'true' }}
+        working-directory: function
+        run: |
+          LAYER_NAME="${{ inputs.layer_name }}"
+          LAYER_DESCRIPTION="${{ inputs.layer_description }}"
+          runtime="${{ inputs.layer_runtime }}"
+          LAMBDA_FUNCTION_NAME="${{ inputs.lambda_function_name }}"
+          LAYER_ARN=$(aws lambda publish-layer-version --layer-name "$LAYER_NAME" --description "$LAYER_DESCRIPTION" --compatible-runtimes "$runtime" --zip-file fileb://layer.zip --output text --query 'LayerVersionArn')
+          echo "layer_arn=$LAYER_ARN" >> $GITHUB_OUTPUT
+          aws lambda update-function-configuration --function-name "$LAMBDA_FUNCTION_NAME" --layers "$LAYER_ARN"
+          rm layer.zip
+          sleep 10
+
+      - name: Update Lambda Function Code
+        working-directory: function
+        run: |
+          LAMBDA_FUNCTION_NAME="${{ inputs.lambda_function_name }}"
+          aws lambda update-function-code --function-name "$LAMBDA_FUNCTION_NAME" --zip-file fileb://lambda_function.zip
+          rm lambda_function.zip
