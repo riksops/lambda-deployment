@@ -35,6 +35,15 @@ on:
         type: string
         description: "Name of the Lambda function to deploy"
         required: true
+      enable_versioning:
+        type: string
+        description: "Publish a new Lambda version and update alias"
+        default: "true"
+      lambda_alias_name:
+        type: string
+        description: "Lambda alias name (dev, qa, prod)"
+        default: "dev"
+
       # use_oidc:
       #   type: string
       #   description: "Use the OIDC provider to authenticate the provisioning process"
